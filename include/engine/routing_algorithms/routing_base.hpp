@@ -6,6 +6,7 @@
 #include "engine/algorithm.hpp"
 #include "engine/datafacade/contiguous_internalmem_datafacade.hpp"
 #include "engine/internal_route_result.hpp"
+#include "engine/phantom_node.hpp"
 #include "engine/search_engine_data.hpp"
 
 #include "util/coordinate_calculation.hpp"
@@ -38,8 +39,10 @@ static constexpr bool REVERSE_DIRECTION = false;
 static constexpr bool DO_NOT_FORCE_LOOPS = false;
 
 bool needsLoopForward(const PhantomNode &source_phantom, const PhantomNode &target_phantom);
-
 bool needsLoopBackwards(const PhantomNode &source_phantom, const PhantomNode &target_phantom);
+
+bool needsLoopForward(const PhantomNodes &phantoms);
+bool needsLoopBackwards(const PhantomNodes &phantoms);
 
 void insertSourceInHeap(SearchEngineData<ch::Algorithm>::ManyToManyQueryHeap &heap,
                         const PhantomNode &phantom_node);

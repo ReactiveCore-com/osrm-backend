@@ -7,6 +7,7 @@
 #include "osrm/osrm.hpp"
 #include "osrm/storage_config.hpp"
 
+#include <boost/algorithm/string/case_conv.hpp>
 #include <boost/any.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
@@ -49,13 +50,15 @@ const static unsigned INIT_OK_START_ENGINE = 0;
 const static unsigned INIT_OK_DO_NOT_START_ENGINE = 1;
 const static unsigned INIT_FAILED = -1;
 
-EngineConfig::Algorithm stringToAlgorithm(const std::string &algorithm)
+static EngineConfig::Algorithm stringToAlgorithm(std::string algorithm)
 {
-    if (algorithm == "CH")
+    boost::to_lower(algorithm);
+
+    if (algorithm == "ch")
         return EngineConfig::Algorithm::CH;
-    if (algorithm == "CoreCH")
+    if (algorithm == "corech")
         return EngineConfig::Algorithm::CoreCH;
-    if (algorithm == "MLD")
+    if (algorithm == "mld")
         return EngineConfig::Algorithm::MLD;
     throw util::exception("Invalid algorithm name: " + algorithm);
 }

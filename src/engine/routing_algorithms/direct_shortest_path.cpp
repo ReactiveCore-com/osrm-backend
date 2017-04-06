@@ -100,7 +100,7 @@ InternalRouteResult directShortestPathSearchImpl(
     return extractRoute(facade, weight, phantom_nodes, unpacked_nodes, unpacked_edges);
 }
 
-} // namespace ch
+} // namespace detail
 
 InternalRouteResult directShortestPathSearch(
     SearchEngineData<corech::Algorithm> &engine_working_data,

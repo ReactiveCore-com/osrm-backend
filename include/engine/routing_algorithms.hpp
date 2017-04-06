@@ -132,7 +132,7 @@ template <typename Algorithm>
 InternalManyRoutesResult
 RoutingAlgorithms<Algorithm>::AlternativePathSearch(const PhantomNodes &phantom_node_pair) const
 {
-    return routing_algorithms::ch::alternativePathSearch(heaps, facade, phantom_node_pair);
+    return routing_algorithms::alternativePathSearch(heaps, facade, phantom_node_pair);
 }
 
 template <typename Algorithm>
@@ -205,13 +205,6 @@ RoutingAlgorithms<routing_algorithms::corech::Algorithm>::ManyToManySearch(
 }
 
 // MLD overrides for not implemented
-template <>
-InternalManyRoutesResult inline RoutingAlgorithms<
-    routing_algorithms::mld::Algorithm>::AlternativePathSearch(const PhantomNodes &) const
-{
-    throw util::exception("AlternativePathSearch is not implemented");
-}
-
 template <>
 inline std::vector<EdgeWeight>
 RoutingAlgorithms<routing_algorithms::mld::Algorithm>::ManyToManySearch(

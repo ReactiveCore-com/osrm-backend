@@ -24,7 +24,7 @@ namespace
 // Unrestricted search (Args is const PhantomNodes &):
 //   * use partition.GetQueryLevel to find the node query level based on source and target phantoms
 //   * allow to traverse all cells
-inline LevelID getNodeQureyLevel(const partition::MultiLevelPartitionView &partition,
+inline LevelID getNodeQueryLevel(const partition::MultiLevelPartitionView &partition,
                                  NodeID node,
                                  const PhantomNodes &phantom_nodes)
 {
@@ -49,7 +49,7 @@ inline bool checkParentCellRestriction(CellID, const PhantomNodes &) { return tr
 //   * use the fixed level for queries
 //   * check if the node cell is the same as the specified parent onr
 inline LevelID
-getNodeQureyLevel(const partition::MultiLevelPartitionView &, NodeID, LevelID level, CellID)
+getNodeQueryLevel(const partition::MultiLevelPartitionView &, NodeID, LevelID level, CellID)
 {
     return level;
 }
@@ -96,7 +96,7 @@ void routingStep(const datafacade::ContiguousInternalMemoryDataFacade<Algorithm>
         }
     }
 
-    const auto level = getNodeQureyLevel(partition, node, args...);
+    const auto level = getNodeQueryLevel(partition, node, args...);
 
     if (level >= 1 && !forward_heap.GetData(node).from_clique_arc)
     {
@@ -283,7 +283,7 @@ search(SearchEngineData<Algorithm> &engine_working_data,
         }
         else
         { // an overlay graph edge
-            LevelID level = getNodeQureyLevel(partition, source, args...);
+            LevelID level = getNodeQueryLevel(partition, source, args...);
             CellID parent_cell_id = partition.GetCell(level, source);
             BOOST_ASSERT(parent_cell_id == partition.GetCell(level, target));
 
