@@ -155,6 +155,9 @@ alternativePathSearch(SearchEngineData<Algorithm> &search_engine_data,
     // Reconstruct routes (if any)
     //
 
+    // Get packed path as edges {from node ID, to node ID, from_clique_arc}
+    auto packed_path = retrievePackedPathFromHeap(forward_heap, reverse_heap, middle);
+
     InternalRouteResult primary_route;
     primary_route.segment_end_coordinates = {phantom_node_pair};
 

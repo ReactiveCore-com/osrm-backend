@@ -10,6 +10,12 @@
 
 #include <boost/assert.hpp>
 
+#include <algorithm>
+#include <iterator>
+#include <limits>
+#include <tuple>
+#include <vector>
+
 namespace osrm
 {
 namespace engine
@@ -58,6 +64,70 @@ inline bool checkParentCellRestriction(CellID cell, LevelID, CellID parent)
 {
     return cell == parent;
 }
+}
+
+// Heaps only record for each node its predecessor ("parent") on the shortest path.
+// For re-constructing the actual path we need to trace back all parent "pointers".
+// In contrast to the CH code MLD needs to know the edges (with clique arc property).
+
+using PackedPathEdge = std::tuple</*from*/ NodeID, /*to*/ NodeID, /*from_clique_arc*/ bool>;
+using PackedPath = std::vector<PackedPathEdge>;
+
+template <bool DIRECTION, typename OutIter>
+inline void retrievePackedPathFromSingleHeap(const SearchEngineData<Algorithm>::QueryHeap &heap,
+                                             const NodeID middle,
+                                             OutIter out)
+{
+    NodeID current = middle;
+    NodeID parent = heap.GetData(current).parent;
+
+    while (current != parent)
+    {
+        const auto &data = heap.GetData(current);
+
+        if (DIRECTION == FORWARD_DIRECTION)
+        {
+            *out = std::make_tuple(parent, current, data.from_clique_arc);
+            ++out;
+        }
+        else if (DIRECTION == REVERSE_DIRECTION)
+        {
+            *out = std::make_tuple(current, parent, data.from_clique_arc);
+            ++out;
+        }
+
+        current = parent;
+        parent = heap.GetData(parent).parent;
+    }
+}
+
+template <bool DIRECTION>
+inline PackedPath
+retrievePackedPathFromSingleHeap(const SearchEngineData<Algorithm>::QueryHeap &heap,
+                                 const NodeID middle)
+{
+    PackedPath packed_path;
+    retrievePackedPathFromSingleHeap<DIRECTION>(heap, middle, std::back_inserter(packed_path));
+    return packed_path;
+}
+
+// Trace path from middle to start in the forward search space (in reverse)
+// and from middle to end in the reverse search space. Middle connects paths.
+
+inline PackedPath
+retrievePackedPathFromHeap(const SearchEngineData<Algorithm>::QueryHeap &forward_heap,
+                           const SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
+                           const NodeID middle)
+{
+    // Retrieve start -> middle. Is in reverse order since tracing back starts from middle.
+    auto packed_path = retrievePackedPathFromSingleHeap<FORWARD_DIRECTION>(forward_heap, middle);
+    std::reverse(begin(packed_path), end(packed_path));
+
+    // Retrieve middle -> end. Is already in correct order, tracing starts from middle.
+    auto into = std::back_inserter(packed_path);
+    retrievePackedPathFromSingleHeap<REVERSE_DIRECTION>(reverse_heap, middle, into);
+
+    return packed_path;
 }
 
 template <bool DIRECTION, typename... Args>
@@ -242,27 +312,12 @@ search(SearchEngineData<Algorithm> &engine_working_data,
         return std::make_tuple(INVALID_EDGE_WEIGHT, std::vector<NodeID>(), std::vector<EdgeID>());
     }
 
-    // Get packed path as edges {from node ID, to node ID, edge ID}
-    std::vector<std::tuple<NodeID, NodeID, bool>> packed_path;
-    NodeID current_node = middle, parent_node = forward_heap.GetData(middle).parent;
-    while (parent_node != current_node)
-    {
-        const auto &data = forward_heap.GetData(current_node);
-        packed_path.push_back(std::make_tuple(parent_node, current_node, data.from_clique_arc));
-        current_node = parent_node;
-        parent_node = forward_heap.GetData(parent_node).parent;
-    }
-    std::reverse(std::begin(packed_path), std::end(packed_path));
-    const NodeID source_node = current_node;
+    // Get packed path as edges {from node ID, to node ID, from_clique_arc}
+    auto packed_path = retrievePackedPathFromHeap(forward_heap, reverse_heap, middle);
 
-    current_node = middle, parent_node = reverse_heap.GetData(middle).parent;
-    while (parent_node != current_node)
-    {
-        const auto &data = reverse_heap.GetData(current_node);
-        packed_path.push_back(std::make_tuple(current_node, parent_node, data.from_clique_arc));
-        current_node = parent_node;
-        parent_node = reverse_heap.GetData(parent_node).parent;
-    }
+    // Beware the edge case when start, middle, end are all the same.
+    // In this case we return a single node, no edges. We also don't unpack.
+    const NodeID source_node = !packed_path.empty() ? std::get<0>(packed_path.front()) : middle;
 
     // Unpack path
     std::vector<NodeID> unpacked_nodes;
@@ -271,6 +326,7 @@ search(SearchEngineData<Algorithm> &engine_working_data,
     unpacked_edges.reserve(packed_path.size());
 
     unpacked_nodes.push_back(source_node);
+
     for (auto const &packed_edge : packed_path)
     {
         NodeID source, target;
