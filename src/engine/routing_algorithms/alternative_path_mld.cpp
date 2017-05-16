@@ -91,7 +91,7 @@ alternativePathSearch(SearchEngineData<Algorithm> &search_engine_data,
         if (!keep_going)
             break;
 
-        // Force routeSteps to not break early when we reached the middle, continue for overlap.
+        // Force forward step to not break early when we reached the middle, continue for overlap.
         overlap_weight = INVALID_EDGE_WEIGHT;
 
         if (!forward_heap.Empty())
@@ -114,6 +114,11 @@ alternativePathSearch(SearchEngineData<Algorithm> &search_engine_data,
             }
         }
 
+        // Adjusting upper bound for forward search
+        path_weight = std::min(path_weight, overlap_weight);
+        // Force reverse step to not break early when we reached the middle, continue for overlap.
+        overlap_weight = INVALID_EDGE_WEIGHT;
+
         if (!reverse_heap.Empty())
         {
             routingStep<REVERSE_DIRECTION>(facade,
@@ -134,7 +139,8 @@ alternativePathSearch(SearchEngineData<Algorithm> &search_engine_data,
             }
         }
 
-        path_weight = overlap_weight;
+        // Adjusting upper bound for reverse search
+        path_weight = std::min(path_weight, overlap_weight);
     }
 
     //
