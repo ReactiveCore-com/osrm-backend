@@ -44,16 +44,14 @@ alternativePathSearch(SearchEngineData<Algorithm> &search_engine_data,
                       const datafacade::ContiguousInternalMemoryDataFacade<Algorithm> &facade,
                       const PhantomNodes &phantom_node_pair)
 {
+    const auto &partition = facade.GetMultiLevelPartition();
+
     search_engine_data.InitializeOrClearFirstThreadLocalStorage(facade.GetNumberOfNodes());
 
     auto &forward_heap = *search_engine_data.forward_heap_1;
     auto &reverse_heap = *search_engine_data.reverse_heap_1;
 
     insertNodesInHeaps(forward_heap, reverse_heap, phantom_node_pair);
-
-    // TODO: use for pruning
-    // const auto &partition = facade.GetMultiLevelPartition();
-    // const auto &cells = facade.GetCellStorage();
 
     //
     // Save nodes in the forward and backward search space overlap as candidates
@@ -144,7 +142,7 @@ alternativePathSearch(SearchEngineData<Algorithm> &search_engine_data,
     }
 
     //
-    // Filter via candidate nodes with heuristics
+    // Todo: filter via candidate nodes with heuristics
     //
 
     std::cout << ">>> number of candidates: " << candidates.size() << std::endl;
@@ -157,18 +155,86 @@ alternativePathSearch(SearchEngineData<Algorithm> &search_engine_data,
 
     const auto route_found = path_weight != INVALID_EDGE_WEIGHT && middle != SPECIAL_NODEID;
 
+    if (!route_found)
+        return InternalManyRoutesResult{};
+
     //
-    // Reconstruct routes (if any)
+    // Reconstruct paths
     //
 
     // Get packed path as edges {from node ID, to node ID, from_clique_arc}
     auto packed_path = retrievePackedPathFromHeap(forward_heap, reverse_heap, middle);
 
-    InternalRouteResult primary_route;
-    primary_route.segment_end_coordinates = {phantom_node_pair};
+    // Beware the edge case when start, middle, end are all the same.
+    // In this case we return a single node, no edges. We also don't unpack.
+    const NodeID source_node = !packed_path.empty() ? std::get<0>(packed_path.front()) : middle;
 
-    if (!route_found)
-        return InternalManyRoutesResult{std::move(primary_route)};
+    //
+    // Todo: dup. code with mld::search except for level entry: we run a slight mld::search
+    //       adaption here and then dispatch to mld::search for recursively descending down.
+    //
+
+    std::vector<NodeID> unpacked_nodes;
+    std::vector<EdgeID> unpacked_edges;
+    unpacked_nodes.reserve(packed_path.size());
+    unpacked_edges.reserve(packed_path.size());
+
+    unpacked_nodes.push_back(source_node);
+
+    for (auto const &packed_edge : packed_path)
+    {
+        NodeID source, target;
+        bool overlay_edge;
+        std::tie(source, target, overlay_edge) = packed_edge;
+        if (!overlay_edge)
+        { // a base graph edge
+            unpacked_nodes.push_back(target);
+            unpacked_edges.push_back(facade.FindEdge(source, target));
+        }
+        else
+        { // an overlay graph edge
+            LevelID level = getNodeQueryLevel(partition, source, phantom_node_pair); // XXX
+            CellID parent_cell_id = partition.GetCell(level, source);
+            BOOST_ASSERT(parent_cell_id == partition.GetCell(level, target));
+
+            LevelID sublevel = level - 1;
+
+            // Here heaps can be reused, let's go deeper!
+            forward_heap.Clear();
+            reverse_heap.Clear();
+            forward_heap.Insert(source, 0, {source});
+            reverse_heap.Insert(target, 0, {target});
+
+            // TODO: when structured bindings will be allowed change to
+            // auto [subpath_weight, subpath_source, subpath_target, subpath] = ...
+            EdgeWeight subpath_weight;
+            std::vector<NodeID> subpath_nodes;
+            std::vector<EdgeID> subpath_edges;
+            std::tie(subpath_weight, subpath_nodes, subpath_edges) = search(search_engine_data,
+                                                                            facade,
+                                                                            forward_heap,
+                                                                            reverse_heap,
+                                                                            force_loop_forward,
+                                                                            force_loop_backward,
+                                                                            INVALID_EDGE_WEIGHT,
+                                                                            sublevel,
+                                                                            parent_cell_id);
+            BOOST_ASSERT(!subpath_edges.empty());
+            BOOST_ASSERT(subpath_nodes.size() > 1);
+            BOOST_ASSERT(subpath_nodes.front() == source);
+            BOOST_ASSERT(subpath_nodes.back() == target);
+            unpacked_nodes.insert(
+                unpacked_nodes.end(), std::next(subpath_nodes.begin()), subpath_nodes.end());
+            unpacked_edges.insert(unpacked_edges.end(), subpath_edges.begin(), subpath_edges.end());
+        }
+    }
+
+    auto primary_route =
+        extractRoute(facade, path_weight, phantom_node_pair, unpacked_nodes, unpacked_edges);
+
+    //
+    // Todo: do the same for alternative paths
+    //
 
     std::vector<InternalRouteResult> routes;
     routes.push_back(std::move(primary_route));

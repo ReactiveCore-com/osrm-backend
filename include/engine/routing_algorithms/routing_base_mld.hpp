@@ -70,8 +70,8 @@ inline bool checkParentCellRestriction(CellID cell, LevelID, CellID parent)
 // For re-constructing the actual path we need to trace back all parent "pointers".
 // In contrast to the CH code MLD needs to know the edges (with clique arc property).
 
-using PackedPathEdge = std::tuple</*from*/ NodeID, /*to*/ NodeID, /*from_clique_arc*/ bool>;
-using PackedPath = std::vector<PackedPathEdge>;
+using PackedEdge = std::tuple</*from*/ NodeID, /*to*/ NodeID, /*from_clique_arc*/ bool>;
+using PackedPath = std::vector<PackedEdge>;
 
 template <bool DIRECTION, typename OutIter>
 inline void retrievePackedPathFromSingleHeap(const SearchEngineData<Algorithm>::QueryHeap &heap,
@@ -249,16 +249,24 @@ void routingStep(const datafacade::ContiguousInternalMemoryDataFacade<Algorithm>
     }
 }
 
+// With (s, middle, t) we trace back the paths middle -> s and middle -> t.
+// This gives us a packed path (node ids) from the base graph around s and t,
+// and overlay node ids otherwise. We then have to unpack the overlay clique
+// edges by recursively descending unpacking the path down to the base graph.
+
+using UnpackedNodes = std::vector<NodeID>;
+using UnpackedEdges = std::vector<EdgeID>;
+using UnpackedPath = std::tuple<EdgeWeight, UnpackedNodes, UnpackedEdges>;
+
 template <typename... Args>
-std::tuple<EdgeWeight, std::vector<NodeID>, std::vector<EdgeID>>
-search(SearchEngineData<Algorithm> &engine_working_data,
-       const datafacade::ContiguousInternalMemoryDataFacade<Algorithm> &facade,
-       SearchEngineData<Algorithm>::QueryHeap &forward_heap,
-       SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
-       const bool force_loop_forward,
-       const bool force_loop_reverse,
-       EdgeWeight weight_upper_bound,
-       Args... args)
+UnpackedPath search(SearchEngineData<Algorithm> &engine_working_data,
+                    const datafacade::ContiguousInternalMemoryDataFacade<Algorithm> &facade,
+                    SearchEngineData<Algorithm>::QueryHeap &forward_heap,
+                    SearchEngineData<Algorithm>::QueryHeap &reverse_heap,
+                    const bool force_loop_forward,
+                    const bool force_loop_reverse,
+                    EdgeWeight weight_upper_bound,
+                    Args... args)
 {
     if (forward_heap.Empty() || reverse_heap.Empty())
     {
