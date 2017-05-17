@@ -54,8 +54,8 @@ namespace util
 // are computed, this means the internal distance metric doesn not represent meters!
 template <class EdgeDataT,
           storage::Ownership Ownership = storage::Ownership::Container,
-          std::uint32_t BRANCHING_FACTOR = 64,
-          std::uint32_t LEAF_PAGE_SIZE = 2048>
+          std::uint32_t BRANCHING_FACTOR = 128,
+          std::uint32_t LEAF_PAGE_SIZE = 4096>
 class StaticRTree
 {
     template <typename T> using Vector = ViewOrVector<T, Ownership>;
