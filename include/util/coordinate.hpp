@@ -53,33 +53,16 @@ struct latitude
 struct longitude
 {
 };
-struct unsafelatitude
-{
-};
-struct unsafelongitude
-{
-};
 }
 
-// Internal lon/lat types - assumed to be range safe
 using FixedLatitude = Alias<std::int32_t, tag::latitude>;
 using FixedLongitude = Alias<std::int32_t, tag::longitude>;
 using FloatLatitude = Alias<double, tag::latitude>;
 using FloatLongitude = Alias<double, tag::longitude>;
-// Types used for external input data - conversion functions perform extra
-// range checks on these (toFixed/toFloat, etc)
-using UnsafeFixedLatitude = Alias<std::int32_t, tag::unsafelatitude>;
-using UnsafeFixedLongitude = Alias<std::int32_t, tag::unsafelongitude>;
-using UnsafeFloatLatitude = Alias<double, tag::unsafelatitude>;
-using UnsafeFloatLongitude = Alias<double, tag::unsafelongitude>;
 static_assert(std::is_pod<FixedLatitude>(), "FixedLatitude is not a valid alias");
 static_assert(std::is_pod<FixedLongitude>(), "FixedLongitude is not a valid alias");
 static_assert(std::is_pod<FloatLatitude>(), "FloatLatitude is not a valid alias");
 static_assert(std::is_pod<FloatLongitude>(), "FloatLongitude is not a valid alias");
-static_assert(std::is_pod<UnsafeFixedLatitude>(), "FixedLatitude is not a valid alias");
-static_assert(std::is_pod<UnsafeFixedLongitude>(), "FixedLongitude is not a valid alias");
-static_assert(std::is_pod<UnsafeFloatLatitude>(), "FloatLatitude is not a valid alias");
-static_assert(std::is_pod<UnsafeFloatLongitude>(), "FloatLongitude is not a valid alias");
 
 /**
  * Converts a typed latitude from floating to fixed representation.
@@ -89,13 +72,6 @@ static_assert(std::is_pod<UnsafeFloatLongitude>(), "FloatLongitude is not a vali
  * \see Coordinate, toFloating
  */
 inline FixedLatitude toFixed(const FloatLatitude floating)
-{
-    const auto latitude = static_cast<double>(floating);
-    const auto fixed = static_cast<std::int32_t>(std::round(latitude * COORDINATE_PRECISION));
-    return FixedLatitude{fixed};
-}
-
-inline FixedLatitude toFixed(const UnsafeFloatLatitude floating)
 {
     const auto latitude = static_cast<double>(floating);
     const auto fixed =
@@ -113,13 +89,6 @@ inline FixedLatitude toFixed(const UnsafeFloatLatitude floating)
 inline FixedLongitude toFixed(const FloatLongitude floating)
 {
     const auto longitude = static_cast<double>(floating);
-    const auto fixed = static_cast<std::int32_t>(std::round(longitude * COORDINATE_PRECISION));
-    return FixedLongitude{fixed};
-}
-
-inline FixedLongitude toFixed(const UnsafeFloatLongitude floating)
-{
-    const auto longitude = static_cast<double>(floating);
     const auto fixed =
         boost::numeric_cast<std::int32_t>(std::round(longitude * COORDINATE_PRECISION));
     return FixedLongitude{fixed};
@@ -135,13 +104,6 @@ inline FixedLongitude toFixed(const UnsafeFloatLongitude floating)
 inline FloatLatitude toFloating(const FixedLatitude fixed)
 {
     const auto latitude = static_cast<std::int32_t>(fixed);
-    const auto floating = static_cast<double>(latitude / COORDINATE_PRECISION);
-    return FloatLatitude{floating};
-}
-
-inline FloatLatitude toFloating(const UnsafeFixedLatitude fixed)
-{
-    const auto latitude = static_cast<std::int32_t>(fixed);
     const auto floating = boost::numeric_cast<double>(latitude / COORDINATE_PRECISION);
     return FloatLatitude{floating};
 }
@@ -154,13 +116,6 @@ inline FloatLatitude toFloating(const UnsafeFixedLatitude fixed)
  * \see Coordinate, toFixed
  */
 inline FloatLongitude toFloating(const FixedLongitude fixed)
-{
-    const auto longitude = static_cast<std::int32_t>(fixed);
-    const auto floating = static_cast<double>(longitude / COORDINATE_PRECISION);
-    return FloatLongitude{floating};
-}
-
-inline FloatLongitude toFloating(const UnsafeFixedLongitude fixed)
 {
     const auto longitude = static_cast<std::int32_t>(fixed);
     const auto floating = boost::numeric_cast<double>(longitude / COORDINATE_PRECISION);
